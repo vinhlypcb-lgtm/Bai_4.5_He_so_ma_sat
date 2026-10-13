@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bài 4.4 - Sự phụ thuộc của gia tốc vào khối lượng của hệ (đệm khí)</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Tahoma,sans-serif;background:#1a1a2e;color:#fff}
+#container{display:flex;height:100vh;width:100vw}
+#cc{flex:1;position:relative;background:radial-gradient(circle,#2a2a4a 0%,#0f0f1a 100%);min-height:380px}
+#title{position:absolute;top:12px;left:12px;z-index:10;background:rgba(0,0,0,.7);padding:8px 14px;border-radius:8px}
+#title h1{font-size:1.1rem;color:#4ecca3}#title p{font-size:.8rem;color:#aaa}
+#title label.lb{display:inline;font-size:.78rem;color:#ccc;font-weight:normal}
+#title input{width:auto;vertical-align:middle}
+#bView{position:absolute;top:12px;right:12px;z-index:10;width:auto;padding:8px 14px}
+#zoomwrap{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);width:min(900px,calc(100% - 20px));z-index:10;background:rgba(0,0,0,.78);border:2px solid #4ecca3;border-radius:8px;padding:6px 8px}
+#zoomwrap .zt{display:flex;justify-content:space-between;font-size:.8rem;color:#4ecca3;margin-bottom:4px;gap:8px}
+#zoom{width:100%;height:190px;display:block;border-radius:4px}
+#chart{width:100%;height:190px;display:block;border-radius:4px;border:1px solid #0f3460}
+#panel{width:390px;background:#16213e;border-left:2px solid #0f3460;padding:16px;display:flex;flex-direction:column;gap:10px;overflow-y:auto}
+h2{font-size:1rem;color:#e94560;border-bottom:2px solid #e94560;padding-bottom:4px;text-transform:uppercase;margin-top:6px}
+label{display:block;margin-bottom:4px;font-size:.85rem;color:#4ecca3;font-weight:bold}
+select,input,button{width:100%;padding:8px;border-radius:4px;border:1px solid transparent;background:#0f3460;color:#fff;font-size:.9rem;outline:none}
+button{background:#e94560;font-weight:bold;cursor:pointer}
+button:hover:not(:disabled){background:#ff6b81}
+button:disabled,input:disabled{opacity:.4;cursor:not-allowed}
+.ins{font-size:.8rem;line-height:1.4;color:#ccc;background:#1a1a2e;padding:8px;border-radius:4px}
+.chip{font-size:.85rem;padding:5px 8px;border-radius:4px;background:#1a1a2e;text-align:center;color:#aaa}
+.chip.on{color:#2ecc71;border:1px solid #2ecc71}
+#msg{font-size:.85rem;min-height:1.2em}
+.good{color:#2ecc71}.warn{color:#ffb142}
+table{width:100%;border-collapse:collapse;font-size:.8rem}
+th,td{border:1px solid #0f3460;padding:4px;text-align:center}th{background:#1a1a2e;color:#4ecca3}
+tr.cur td{background:#1d2f57}
+.row{display:flex;align-items:center;gap:6px;margin:4px 0}.row span{white-space:nowrap;font-size:.85rem}
+.ok{border-color:#2ecc71!important;background:#14532d!important}.bad{border-color:#e94560!important;background:#5a1a2a!important}
+#calc.lock{opacity:.35;pointer-events:none}
+details{font-size:.8rem;color:#ccc;background:#1a1a2e;border-radius:4px;padding:6px 8px;margin:4px 0;line-height:1.5}
+#final{font-size:1rem;font-weight:bold;text-align:center;padding:8px;border:1px solid #e94560;border-radius:6px;margin-top:6px;line-height:1.6}
+@media(max-width:900px){#container{flex-direction:column;height:auto}#cc{flex:none;height:78vh}#panel{width:100%}}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+<div id="container">
+ <div id="cc">
+  <div id="title"><h1>THÍ NGHIỆM ĐỆM KHÍ 3D</h1><p>Bài 4.4: Sự phụ thuộc của gia tốc vào khối lượng của hệ (s = 40 cm, m = 20 g)</p>
+   <input type="checkbox" id="lab" checked> <label class="lb" for="lab">Hiện tên bộ phận (1)–(6), (a)–(d)</label></div>
+  <button id="bView">🔍 Xem cổng quang</button>
+  <div id="zoomwrap">
+   <div class="zt"><span>Màn hình CASSY Lab 2: vận tốc v₁, v₂ khi lá cờ qua hai cổng quang và đồ thị x(t) của xe</span></div>
+   <canvas id="zoom"></canvas>
+  </div>
+ </div>
+ <div id="panel">
+  <h2>1. Chọn khối lượng của hệ <span id="tag" style="color:#4ecca3;text-transform:none"></span></h2>
+  <select id="sel"></select>
+  <div class="ins">Khối lượng ban đầu của hệ <b>M = m<sub>xe</sub> + m</b>, với xe m<sub>xe</sub> = 200 g (đã cân ở Mục 2.3) và gia trọng treo m = 20 g. Lần lượt đặt thêm lên xe 1, 2, 3 quả nặng 100 g: M₁ = M + 100, M₂ = M + 2·100, M₃ = M + 3·100. Gia trọng treo luôn là 20 g nên lực kéo F = m·g không đổi. Khoảng cách hai cổng quang cố định s = 40 cm.</div>
+
+  <h2>2. Thao tác đo</h2>
+  <div class="ins" id="guide"></div>
+  <details><summary>Nguyên lý thí nghiệm</summary>
+   Theo định luật II Newton (14): <b>a = F / M</b>, trong đó M là khối lượng của cả hệ vật (xe, các quả nặng đặt trên xe và gia trọng treo).<br>
+   Lực phát động F là trọng lực của gia trọng 20 g, giữ không đổi. Khi M tăng thì a giảm: a tỉ lệ nghịch với M.<br>
+   Gia tốc được xác định từ công thức (13): <b>a = (v₂² − v₁²) / (2s)</b>.
+  </details>
+  <details><summary>Cách tính khối lượng hệ</summary>
+   M = m<sub>xe</sub> + m + (khối lượng các quả nặng đã đặt thêm lên xe). Ví dụ đặt thêm 1 quả 100 g: M = 200 + 20 + 100 = 320 g.
+  </details>
+  <button id="bPump">① Bật bộ điều khiển công suất (cấp khí)</button>
+  <div class="chip" id="chipP">Máy bơm khí: tắt</div>
+  <button id="bGate">② Dời cổng quang 2 (s = 40 cm)</button>
+  <div class="chip" id="chipG">—</div>
+  <button id="bReady">③ Đặt xe về vị trí xuất phát (giữ nhẹ xe)</button>
+  <div>
+   <label for="speed">Tốc độ mô phỏng:</label>
+   <select id="speed"><option value="1">Thời gian thực (×1)</option><option value="0.5" selected>Chậm ×0,5</option><option value="0.2">Rất chậm ×0,2</option></select>
+  </div>
+  <button id="bRel">④ Thả tay cho xe chạy</button>
+  <div class="row"><span>M =</span><input id="inM" type="number" step="1" placeholder="khối lượng hệ"><span>g</span></div>
+  <div class="row"><span>v₁ =</span><input id="inV1" type="number" step="0.1" placeholder="cổng 1"><span>cm/s</span></div>
+  <div class="row"><span>v₂ =</span><input id="inV2" type="number" step="0.1" placeholder="cổng 2"><span>cm/s</span></div>
+  <div class="row"><span>a =</span><input id="inA" type="number" step="0.1" placeholder="a = (v₂²−v₁²)/2s"><span>cm/s²</span></div>
+  <button id="bRec">⑤ Ghi kết quả vào bảng</button>
+  <div id="msg"></div>
+
+  <h2>3. Bảng số liệu</h2>
+  <table>
+   <thead><tr><th>Khối lượng</th><th>M (g)</th><th>v₁ (cm/s)</th><th>v₂ (cm/s)</th><th>a (cm/s²)</th></tr></thead>
+   <tbody id="tb"></tbody>
+  </table>
+
+  <h2>4. Xử lý số liệu</h2>
+  <div id="calc" class="lock">
+   <div class="ins">Đồ thị gia tốc a theo nghịch đảo khối lượng 1/M (các điểm đo của bạn). Nếu a tỉ lệ nghịch với M, các điểm nằm trên đường thẳng đi qua gốc tọa độ:</div>
+   <canvas id="chart"></canvas>
+   <div class="ins">Tích a·M ứng với mỗi lần đo, lấy trung bình và đổi sang N (a theo m/s², M theo kg):</div>
+   <div class="row"><span>(a·M)<sub>tb</sub> =</span><input id="cF" type="number" step="any"><span>N</span></div>
+   <div class="ins">Hệ số góc của đường thẳng a theo 1/M (tính bằng điểm đầu và điểm cuối; a theo m/s², 1/M theo kg⁻¹):</div>
+   <div class="row"><span>k =</span><input id="cK" type="number" step="any"><span>N</span></div>
+   <div class="ins">Trọng lực của gia trọng treo (lực phát động), g ≈ 9,8 m/s²:</div>
+   <div class="row"><span>m·g =</span><input id="cG" type="number" step="any"><span>N</span></div>
+   <div class="ins">Nhận xét về sự phụ thuộc của a vào M:</div>
+   <select id="cNote">
+    <option value="">-- chọn nhận xét --</option>
+    <option value="a">a tỉ lệ thuận với M</option>
+    <option value="b">a tỉ lệ nghịch với M: đồ thị a theo 1/M là đường thẳng đi qua gốc tọa độ</option>
+    <option value="c">a không phụ thuộc vào M</option>
+   </select>
+   <details><summary>Gợi ý công thức</summary>
+    aᵢ·Mᵢ = F với a theo m/s² và M theo kg, nên a(m/s²) = a(cm/s²) / 100 và M(kg) = M(g) / 1000.<br>
+    k = [a₃ − a₀] / [1/M₃ − 1/M₀] (a theo m/s², 1/M theo kg⁻¹ = 1000 / M(g)). Theo a = F/M thì k = F = m·g.
+   </details>
+   <button id="bCheck">Kiểm tra kết quả</button>
+   <button id="bShow" style="background:#0f3460;margin-top:6px">Xem đáp án</button>
+   <div id="final" style="display:none"></div>
+  </div>
+  <button id="bReset" style="background:#0f3460">Làm lại từ đầu</button>
+ </div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+// ---------- SỐ LIỆU THÍ NGHIỆM (đơn vị cm, g) - sửa tại đây nếu muốn đổi số liệu ----------
+const ADD=[0,1,2,3];                 // số quả nặng 100 g đặt thêm lên xe: M, M+100, M+200, M+300
+const SFIX=40;                       // khoảng cách hai cổng quang cố định (cm)
+const D0=30,MW=20,MX=200,MB=100;     // d (cm), gia trọng treo (g), khối lượng xe (g), quả nặng thêm (g)
+const G=980.665,FLAGW=3,GN=9.8;
+const EPS=[0.002,-0.0015,0.001,-0.0025];   // sai lệch nhỏ giữa các lần đo
+const TY=31,PX=154,PYC=29.5,WX=PX+3,WY0=24.5;
+const X0=0,GX1=D0,STOPAFTER=12,HS=1/480,G2INIT=90,G2T=D0+SFIX;
+const NAMES=['M','M + 100','M + 2·100','M + 3·100'];
+const Mk=i=>MX+MW+MB*ADD[i];         // khối lượng của hệ (g)
+let S;
+
+// ---------- THREE.JS ----------
+const cc=$('cc'),scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(45,cc.clientWidth/cc.clientHeight,0.1,3000);
+const V3=(x,y,z)=>new THREE.Vector3(x,y,z);
+const FULL={p:V3(92,52,235),t:V3(86,4,0)};
+camera.position.copy(FULL.p);
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(cc.clientWidth,cc.clientHeight);cc.appendChild(renderer.domElement);
+const controls=new THREE.OrbitControls(camera,renderer.domElement);
+controls.target.copy(FULL.t);controls.enableDamping=true;controls.update();
+scene.add(new THREE.AmbientLight(0xffffff,.65));
+const dl=new THREE.DirectionalLight(0xffffff,.8);dl.position.set(60,160,150);scene.add(dl);
+const dl2=new THREE.DirectionalLight(0x90e0ef,.4);dl2.position.set(-80,60,-80);scene.add(dl2);
+const M=(c,r,m)=>new THREE.MeshStandardMaterial({color:c,roughness:r,metalness:m});
+const steel=M(0xc0c0c0,.3,.8),dark=M(0x33383d,.5,.5),gold=M(0xd4af37,.35,.8),alum=M(0xdfe5ea,.35,.6),
+ beamM=M(0x6b7a86,.5,.5),cartM=M(0xc0392b,.4,.4),flagM=M(0xf1c40f,.5,.1),grey=M(0x9aa3ab,.7,.2),pumpM=M(0x8a949c,.6,.4),
+ skin=M(0xf0c8a0,.8,0),blockM=M(0x4f6d8a,.45,.7);
+const tickM=new THREE.MeshBasicMaterial({color:0x111111});
+const add=(m,x,y,z,p)=>{m.position.set(x,y,z);(p||scene).add(m);return m;};
+const box=(w,h,d,mat)=>new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);
+// bàn thí nghiệm kết thúc tại x = 150; gia trọng rơi tự do ngoài mép bàn
+add(box(210,2,420,M(0x2c3e50,.8,.1)),45,-1,0);
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(900,700),new THREE.MeshStandardMaterial({color:0x151f2b}));
+floor.rotation.x=-Math.PI/2;floor.position.set(80,-120,0);scene.add(floor);
+
+function mkLabel(text,w,h,fg,bg){
+  const c=document.createElement('canvas');c.width=512;c.height=Math.round(512*h/w);
+  const tex=new THREE.CanvasTexture(c);
+  const paint=t=>{const x=c.getContext('2d');x.clearRect(0,0,c.width,c.height);
+    if(bg){x.fillStyle=bg;x.fillRect(0,0,c.width,c.height);}
+    let fs=Math.round(c.height*.58);x.font='bold '+fs+'px Arial';
+    while(x.measureText(t).width>c.width-14&&fs>8){fs-=2;x.font='bold '+fs+'px Arial';}
+    x.fillStyle=fg;x.textAlign='center';x.textBaseline='middle';x.fillText(t,c.width/2,c.height/2+2);tex.needsUpdate=true;};
+  paint(text);
+  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,depthTest:false,transparent:true}));
+  s.scale.set(w,h,1);s.renderOrder=10;s.userData.set=paint;return s;
+}
+
+// (1) máng trượt + (3) giá đỡ
+add(box(158,5,6,alum),71,TY-2.5,0);
+add(box(150,6,5,beamM),71,21.5,0);
+for(let x=0;x<=140;x+=10){add(box(.6,1.6,.6,dark),x,25.3,2.3);add(box(.6,1.6,.6,dark),x,25.3,-2.3);}
+const holeG=new THREE.CircleGeometry(.35,10),holeM=new THREE.MeshBasicMaterial({color:0x222222});
+const airPts=[];
+for(let x=-5;x<=147;x+=2.5)for(const z of[-1.3,1.3]){
+  const h=new THREE.Mesh(holeG,holeM);h.rotation.x=-Math.PI/2;h.position.set(x,TY+.02,z);scene.add(h);
+  airPts.push(x,TY,z,x,TY+.7,z);}
+const airMat=new THREE.LineBasicMaterial({color:0x66ccff,transparent:true,opacity:0});
+scene.add(new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position',new THREE.Float32BufferAttribute(airPts,3)),airMat));
+// thước chia độ trên thành máng
+for(let k=0;k<=150;k++){const len=k%10===0?2:(k%5===0?1.4:.8);add(box(.08,len,.05,tickM),k,TY-len/2,3.03);}
+for(let k=0;k<=150;k+=10){const l=mkLabel(String(k),6,3,'#111111');l.material.depthTest=true;add(l,k,TY-3.8,3.2);}
+const rulerL=mkLabel('thước (cm)',14,3,'#111','rgba(255,255,255,.6)');add(rulerL,-2,TY-6.7,3.4);rulerL.material.depthTest=true;
+// chân đỡ
+for(const x of[20,120]){
+  const rod=new THREE.Mesh(new THREE.CylinderGeometry(1.1,1.1,18.5,16),steel);add(rod,x,9.25,5);
+  add(new THREE.Mesh(new THREE.CylinderGeometry(3.2,3.6,.8,20),dark),x,.4,5);
+  add(box(1.6,1.6,6,steel),x,19.5,2.2);
+  add(new THREE.Mesh(new THREE.CylinderGeometry(1.8,1.8,1.4,16),dark),x,19.5,5.9);}
+// (4) máy bơm khí, (5) ống cấp khí, (6) bộ điều khiển công suất
+add(box(24,14,14,pumpM),-26,7,-6);
+add(box(10,.4,10,dark),-26,14.2,-6);
+const pLED=new THREE.Mesh(new THREE.SphereGeometry(.8,12,12),new THREE.MeshBasicMaterial({color:0x555555}));add(pLED,-14.2,10,-6);
+const hoseC=new THREE.CatmullRomCurve3([V3(-20,14,-6),V3(-26,25,-11),V3(-22,38,-7),V3(-13,37,-2),V3(-9.5,TY-2.5,0)]);
+scene.add(new THREE.Mesh(new THREE.TubeGeometry(hoseC,40,1.6,10),grey));
+const stub=new THREE.Mesh(new THREE.CylinderGeometry(1.9,1.9,3.2,16),dark);stub.rotation.z=Math.PI/2;add(stub,-9.5,TY-2.5,0);
+add(box(10,3,8,M(0xe8e8e8,.5,.2)),-10,1.5,26);
+const knob=new THREE.Mesh(new THREE.CylinderGeometry(2.3,2.3,2.6,24),dark);add(knob,-12,4.2,26);
+add(box(.5,.3,2.2,new THREE.MeshBasicMaterial({color:0xe94560})),0,1.4,0,knob);
+for(const pts of[[V3(-15,4,-1),V3(-13,.8,10),V3(-10,.8,24)],[V3(-8,1,26),V3(0,.6,40),V3(14,.6,46)]])
+  scene.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),20,.3,6),new THREE.MeshBasicMaterial({color:0x111111})));
+
+// ròng rọc và gia trọng treo m = 20 g (rơi tự do ngoài mép bàn)
+add(box(1.2,8,5,steel),150.6,28,0);
+add(box(4.6,1,1.2,steel),152.3,PYC,0);
+const pul=new THREE.Mesh(new THREE.CylinderGeometry(3,3,1.2,40),steel);pul.rotation.x=Math.PI/2;add(pul,PX,PYC,0);
+const weight=new THREE.Group();scene.add(weight);weight.position.set(WX,WY0,0);
+add(new THREE.Mesh(new THREE.CylinderGeometry(.35,.35,3,10),steel),0,1,0,weight);
+add(new THREE.Mesh(new THREE.CylinderGeometry(2.2,2.2,1.6,32),gold),0,0,0,weight);
+
+// cổng quang chữ U (a)
+function makeGate(){
+  const g=new THREE.Group();scene.add(g);
+  add(box(1.6,1.6,11.2,dark),0,17.2,0,g);
+  for(const z of[-5.2,5.2]){add(box(1.4,23.6,1.2,dark),0,28.2,z,g);}
+  add(box(2,3,1.4,steel),0,36,-4.2,g);add(box(2,3,1.4,steel),0,36,4.2,g);
+  add(box(2.4,2,2.4,M(0x111111,.6,.3)),0,17.2,5.6,g);   // (b) bộ kết nối
+  const bm=new THREE.MeshBasicMaterial({color:0xff3355});
+  const beam=new THREE.Mesh(new THREE.CylinderGeometry(.14,.14,8.2,8),bm);beam.rotation.x=Math.PI/2;add(beam,0,36,0,g);
+  g.userData.beam=beam;return g;}
+const gate1=makeGate();gate1.position.x=GX1;
+const gate2=makeGate();
+// Cassy (d) và cáp (c)
+const CASSY=V3(62,14,48);
+add(box(13,28,9,M(0xdadde0,.5,.2)),CASSY.x,CASSY.y,CASSY.z);
+(function(){const c=document.createElement('canvas');c.width=130;c.height=280;const x=c.getContext('2d');
+  x.fillStyle='#e9ecef';x.fillRect(0,0,130,280);x.fillStyle='#1d3557';x.font='bold 18px Arial';x.textAlign='center';x.fillText('CASSY 2',65,26);
+  x.fillStyle='#222';for(const y of[60,120]){x.fillRect(20,y,90,36);x.fillStyle='#e94560';x.beginPath();x.arc(35,y+18,6,0,7);x.fill();x.fillStyle='#2d6cdf';x.beginPath();x.arc(95,y+18,6,0,7);x.fill();x.fillStyle='#222';}
+  x.fillStyle='#222';x.fillRect(20,190,90,60);
+  const p=new THREE.Mesh(new THREE.PlaneGeometry(13,28),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(c)}));add(p,CASSY.x,CASSY.y,CASSY.z+4.55);})();
+const cabM=new THREE.MeshBasicMaterial({color:0x111111});
+function cableGeo(gx){return new THREE.TubeGeometry(new THREE.CatmullRomCurve3([V3(gx,17.2,6.8),V3(gx,12,12),V3((gx+60)/2,2,28),V3(CASSY.x-2,8,CASSY.z-4.6)]),28,.35,6);}
+const cab1=new THREE.Mesh(cableGeo(GX1),cabM);scene.add(cab1);
+const cab2=new THREE.Mesh(cableGeo(G2INIT),cabM);scene.add(cab2);
+
+// xe trượt (2) + lá cờ + bàn tay + các quả nặng 100 g đặt thêm trên xe
+const cartG=new THREE.Group();scene.add(cartG);
+add(box(14,2.2,6.2,cartM),0,TY+1.4,0,cartG);
+add(box(12.5,.4,4.6,M(0xe5e5e5,.5,.3)),0,TY+2.7,0,cartG);
+add(new THREE.Mesh(new THREE.CylinderGeometry(.3,.3,1.2,10),steel),7.4,TY+1.5,0,cartG);
+add(box(FLAGW,5.8,.3,flagM),0,TY+5.6,0,cartG);       // lá cờ: cạnh trước ở x = cart + 1,5
+const blocks=[];
+for(const[x,y]of[[-3.4,TY+3.9],[3.4,TY+3.9],[-3.4,TY+5.9]])blocks.push(add(box(3.4,2,4.2,blockM),x,y,0,cartG));
+const hand=box(3.2,2.6,4.2,skin);add(hand,-8.2,TY+4.9,0,cartG);
+// dây
+const strGeo=new THREE.BufferGeometry();strGeo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(32*3),3));
+const strLine=new THREE.Line(strGeo,new THREE.LineBasicMaterial({color:0xf2f2f2}));strLine.frustumCulled=false;scene.add(strLine);
+
+// kích thước d và s
+function dimLine(text,y){
+  const g=new THREE.Group();scene.add(g);g.position.y=y;
+  const m=new THREE.MeshBasicMaterial({color:0xffd166});
+  const line=box(1,.3,.3,m);g.add(line);
+  const t1=box(.3,3,.3,m),t2=box(.3,3,.3,m);g.add(t1,t2);
+  const l=mkLabel(text,30,6.5,'#ffd166','rgba(0,0,0,.6)');l.position.y=5;g.add(l);
+  g.userData.set=(a,b,txt)=>{line.scale.x=Math.max(.01,b-a);line.position.x=(a+b)/2;t1.position.x=a;t2.position.x=b;l.position.x=(a+b)/2;
+    if(txt!==l.userData.last){l.userData.set(txt);l.userData.last=txt;}};
+  return g;}
+const dimD=dimLine('d = 30 cm',44);dimD.userData.set(X0,GX1,'d = 30 cm');
+const dimS=dimLine('s',50);
+
+// nhãn bộ phận (1)-(6), (a)-(d) như Hình 15, Hình 16
+const labs=new THREE.Group();scene.add(labs);const extra=[];
+const LAB=(t,x,y,z,w,p)=>{const l=mkLabel(t,w||34,6.5,'#00e5b0','rgba(0,0,0,.6)');l.position.set(x,y,z);(p||labs).add(l);if(p)extra.push(l);return l;};
+LAB('(1) Máng trượt',120,46,0,36);
+LAB('(2) Xe trượt',0,TY+13,0,28,cartG);
+LAB('(3) Giá đỡ',90,12,6,26);
+LAB('(4) Máy bơm khí',-26,22,-6,32);
+LAB('(5) Ống cấp khí',-27,44,-10,32);
+LAB('(6) Bộ điều khiển công suất',-5,10,26,46);
+LAB('(a) Cổng quang chữ U 1',GX1,43,8,40);
+LAB('(a) Cổng quang chữ U 2',0,43,8,40,gate2);
+LAB('(b) Bộ kết nối',GX1,13,10,28);
+LAB('(c) Cáp kết nối',(GX1+60)/2-4,5,30,28);
+LAB('(d) Bộ ghép nối Cassy',CASSY.x,33,CASSY.z,40);
+LAB('Gia trọng treo m = 20 g',17,-3,0,46,weight);
+const cLab=LAB('Đặt thêm trên xe: 0 g',0,TY+19,0,50,cartG);
+$('lab').onchange=()=>{const v=$('lab').checked;labs.visible=v;extra.forEach(l=>l.visible=v);};
+
+// ---------- ÂM THANH ----------
+let ac=null;
+function beep(f){try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();
+  const o=ac.createOscillator(),g=ac.createGain();o.frequency.value=f||1800;g.gain.value=.08;o.connect(g);g.connect(ac.destination);
+  o.start();g.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+.1);o.stop(ac.currentTime+.11);}catch(e){}}
+
+// ---------- CAMERA ----------
+let camGoal=null,viewIdx=0;
+const VN=['Toàn cảnh','Cổng quang','Xe & điểm xuất phát','Ròng rọc & gia trọng'];
+function viewGoal(i){
+  if(i===1){const mid=(GX1+S.g2)/2;return{p:V3(mid,56,76),t:V3(mid,30,0)};}
+  if(i===2)return{p:V3(14,50,58),t:V3(14,30,0)};
+  if(i===3)return{p:V3(196,24,96),t:V3(154,0,0)};
+  return FULL;}
+$('bView').onclick=()=>{viewIdx=(viewIdx+1)%4;camGoal=viewGoal(viewIdx);$('bView').textContent='🔍 '+VN[(viewIdx+1)%4];};
+$('bView').textContent='🔍 '+VN[1];
+
+// ---------- MÀN HÌNH CASSY ----------
+const zc=$('zoom'),cx=zc.getContext('2d');
+function drawCassy(){
+  const W=zc.width=zc.clientWidth,H=zc.height=zc.clientHeight;
+  cx.fillStyle='#0d1b2a';cx.fillRect(0,0,W,H);
+  const lw=Math.round(W*.4);cx.fillStyle='#16324f';cx.fillRect(0,0,lw,H);
+  cx.textAlign='left';cx.fillStyle='#8ecae6';cx.font='bold 12px Arial';cx.fillText('CASSY Lab — Chuyển động biến đổi đều',8,16);
+  const f=v=>v===null?'—':v.toFixed(1)+' cm/s';
+  cx.font='13px Arial';cx.fillStyle='#ccc';cx.fillText('s = '+Math.round(S.g2-GX1)+' cm (khoảng cách hai cổng)',8,40);
+  cx.fillStyle='#ffd166';cx.fillText('Thêm trên xe: '+(MB*ADD[S.si])+' g',8,60);
+  cx.font='bold 17px Arial';
+  cx.fillStyle='#4ecca3';cx.fillText('v₁ = '+f(S.v1),8,92);
+  cx.fillStyle='#ffb142';cx.fillText('v₂ = '+f(S.v2),8,120);
+  cx.font='11px Arial';cx.fillStyle='#8aa';cx.fillText('v = bề rộng lá cờ / thời gian che cổng',8,142);
+  const gx0=lw+38,gy0=H-24,gw=W-gx0-12,gh=H-44,tm=2.5,xm=110;
+  const px=t=>gx0+t/tm*gw,py=x=>gy0-x/xm*gh;
+  cx.strokeStyle='#27425f';cx.lineWidth=1;cx.fillStyle='#8aa';cx.font='10px Arial';cx.textAlign='right';
+  for(let x=0;x<=110;x+=20){const y=py(x);cx.beginPath();cx.moveTo(gx0,y);cx.lineTo(gx0+gw,y);cx.stroke();cx.fillText(x,gx0-4,y+3);}
+  cx.textAlign='center';
+  for(let t=0;t<=2.5;t+=.5){const x=px(t);cx.beginPath();cx.moveTo(x,gy0);cx.lineTo(x,gy0-gh);cx.stroke();cx.fillText(t.toFixed(1),x,gy0+12);}
+  cx.fillStyle='#8ecae6';cx.textAlign='left';cx.fillText('x (cm)',gx0-34,12);cx.textAlign='right';cx.fillText('t (s)',gx0+gw,gy0+22);
+  cx.setLineDash([5,4]);cx.lineWidth=1.5;
+  cx.strokeStyle='#2ecc71';cx.beginPath();cx.moveTo(gx0,py(GX1));cx.lineTo(gx0+gw,py(GX1));cx.stroke();
+  cx.strokeStyle='#ffb142';cx.beginPath();cx.moveTo(gx0,py(S.g2));cx.lineTo(gx0+gw,py(S.g2));cx.stroke();cx.setLineDash([]);
+  cx.fillStyle='#00e5ff';
+  for(const[t,x]of S.tr){cx.beginPath();cx.arc(px(t),py(x),1.8,0,7);cx.fill();}
+  cx.fillStyle='#fff';
+  for(let i=0;i<2;i++){const o=S.gt[i];if(o.a!==null){cx.beginPath();cx.arc(px(o.b!==null?(o.a+o.b)/2:o.a),py(i?S.g2:GX1),4,0,7);cx.fill();}}
+}
+
+// ---------- ĐỒ THỊ a THEO 1/M ----------
+function drawChart(){
+  const c=$('chart'),W=c.width=c.clientWidth,H=c.height=c.clientHeight,x=c.getContext('2d');
+  x.fillStyle='#1a1a2e';x.fillRect(0,0,W,H);
+  const L=40,B=26,T=10,R=12,pw=W-L-R,ph=H-B-T,xm=5,am=100;
+  const px=u=>L+u/xm*pw,py=a=>T+ph-a/am*ph;
+  x.strokeStyle='#27425f';x.fillStyle='#8aa';x.font='10px Arial';x.lineWidth=1;x.textAlign='right';
+  for(let a=0;a<=100;a+=20){x.beginPath();x.moveTo(L,py(a));x.lineTo(L+pw,py(a));x.stroke();x.fillText(a,L-4,py(a)+3);}
+  x.textAlign='center';
+  for(let u=0;u<=5;u+=1){x.beginPath();x.moveTo(px(u),T);x.lineTo(px(u),T+ph);x.stroke();x.fillText(u,px(u),T+ph+12);}
+  x.fillStyle='#8ecae6';x.textAlign='left';x.fillText('a (cm/s²)',2,10);x.textAlign='right';x.fillText('1/M (kg⁻¹)',L+pw,H-2);
+  const pts=[];for(let i=0;i<ADD.length;i++)if(S.rd.a[i]!==null)pts.push([1000/S.rd.M[i],S.rd.a[i]]);
+  if(pts.length===ADD.length){const e=expected(),u1=pts[0][0],a1=pts[0][1],sl=e.k*100;x.strokeStyle='#ffb142';x.lineWidth=2;x.beginPath();
+    x.moveTo(px(0),py(a1-sl*u1));x.lineTo(px(xm),py(a1+sl*(xm-u1)));x.stroke();}
+  x.fillStyle='#00e5ff';for(const[u,a]of pts){x.beginPath();x.arc(px(u),py(a),4,0,7);x.fill();}
+}
+
+// ---------- LOGIC ----------
+const msg=(t,c)=>{$('msg').textContent=t;$('msg').className=c||'';};
+const pumpStable=()=>S.pump.on&&S.pump.t>=2;
+const g2ok=()=>Math.abs(S.g2-G2T)<0.01;
+const allDone=()=>S.rd.a.every(v=>v!==null);
+const f1=v=>v===null?'---':v.toFixed(1);
+function rebuildCable(mesh,gx){mesh.geometry.dispose();mesh.geometry=cableGeo(gx);}
+function fillSel(){const sel=$('sel');const cur=S.si;sel.innerHTML='';
+  ADD.forEach((k,i)=>{const o=document.createElement('option');o.value=i;o.textContent=`${NAMES[i]}`+(k?` (thêm ${k} quả 100 g lên xe)`:' (chưa thêm quả nặng)')+(S.rd.a[i]!==null?'  ✔ đã ghi':'');sel.appendChild(o);});
+  sel.value=cur;}
+function chipUpdate(){const c=$('chipP');
+  if(!S.pump.on){c.textContent='Máy bơm khí: tắt';c.className='chip';}
+  else if(!pumpStable()){c.textContent=`… đang chờ gió ổn định (${Math.max(0,2-S.pump.t).toFixed(1)} s)`;c.className='chip';}
+  else{c.textContent='✔ Gió đã ổn định — xe nổi trên đệm khí';c.className='chip on';}}
+function ui(){
+  const st=S.stage,n=S.rd.a.filter(v=>v!==null).length;
+  $('tag').textContent=`— ${n}/${ADD.length} lần đã ghi`;
+  $('bPump').textContent=S.pump.on?'① Tắt bộ điều khiển công suất':'① Bật bộ điều khiển công suất (cấp khí)';
+  $('bPump').disabled=st==='running';
+  $('bGate').textContent=g2ok()?'② Cổng quang 2 đã đặt đúng vị trí ✔':`② Dời cổng quang 2 để s = ${SFIX} cm`;
+  $('bGate').disabled=st==='running'||g2ok()||Math.abs(S.g2T-S.g2)>0.001;
+  $('chipG').textContent=`Cổng 2 đang ở x = ${Math.round(S.g2)} cm → s hiện tại = ${Math.round(S.g2-GX1)} cm (cần ${SFIX} cm)`;
+  $('chipG').className='chip'+(g2ok()?' on':'');
+  $('bReady').disabled=st==='running'||!g2ok();
+  $('bRel').disabled=st!=='ready';
+  $('inM').disabled=$('inV1').disabled=$('inV2').disabled=$('inA').disabled=$('bRec').disabled=st!=='done';
+  $('sel').disabled=st==='running';
+  const add=ADD[S.si];
+  let g;
+  if(st==='running')g='Xe đang chạy dưới lực kéo không đổi của gia trọng 20 g. Quan sát màn hình Cassy bên dưới...';
+  else if(st==='done')g='Xe đã qua cổng 2 và được giữ lại. Tính M = m_xe + m + phần đặt thêm, đọc v₁, v₂ trên Cassy, tính a = (v₂² − v₁²) / (2s), nhập vào bốn ô rồi bấm ⑤.';
+  else if(st==='recorded')g=allDone()?'Đã đủ 4 lần đo. Hãy xử lý số liệu ở mục 4.':'Đã ghi. Chọn khối lượng hệ tiếp theo ở mục 1 (hoặc đo lại lần này bằng ③).';
+  else if(st==='ready')g=pumpStable()?`Đang giữ nhẹ xe tại vị trí xuất phát: cờ cách cổng 1 đúng d = 30 cm, trên xe đã đặt thêm ${add} quả 100 g. Bấm ④ để thả tay.`:'Đang giữ nhẹ xe. Hãy bật bộ điều khiển công suất (①) và đợi gió ổn định, rồi bấm ④ để thả tay.';
+  else g=`Lần đo hệ ${NAMES[S.si]} (đặt thêm ${add} quả 100 g lên xe). Thực hiện lần lượt: ① bật bơm khí và đợi gió ổn định; ② dời cổng quang 2 sao cho s = ${SFIX} cm; ③ đặt xe về vị trí xuất phát; ④ thả tay.`;
+  $('guide').textContent=g;
+  const tb=$('tb');tb.innerHTML='';
+  ADD.forEach((kk,i)=>{const tr=document.createElement('tr');if(i===S.si)tr.className='cur';
+    tr.innerHTML=`<td>${NAMES[i]}</td><td>${S.rd.M[i]===null?'---':S.rd.M[i]}</td><td>${f1(S.rd.v1[i])}</td><td>${f1(S.rd.v2[i])}</td><td>${f1(S.rd.a[i])}</td>`;tb.appendChild(tr);});
+  $('calc').classList.toggle('lock',!allDone());
+  cLab.userData.set(`Đặt thêm trên xe: ${MB*add} g`);
+  chipUpdate();drawCassy();drawChart();
+}
+function resetRun(){S.X=X0;S.V=0;S.simT=0;S.acc=0;S.gt=[{a:null,b:null},{a:null,b:null}];S.v1=S.v2=null;S.tr=[];S.trc=0;}
+function clearInputs(){['inM','inV1','inV2','inA','cF','cK','cG','cNote'].forEach(i=>{$(i).value='';$(i).classList.remove('ok','bad');});$('final').style.display='none';}
+$('sel').onchange=()=>{S.si=parseInt($('sel').value);resetRun();S.stage='setup';clearInputs();msg('');ui();};
+$('speed').onchange=()=>{S.speed=parseFloat($('speed').value);};
+$('bPump').onclick=()=>{S.pump.on=!S.pump.on;if(!S.pump.on)S.pump.t=0;ui();};
+$('bGate').onclick=()=>{S.g2T=G2T;if(S.stage==='ready'){resetRun();S.stage='setup';}msg('Đang dời cổng quang 2...');ui();};
+$('bReady').onclick=()=>{resetRun();S.stage='ready';clearInputs();msg('');ui();};
+$('bRel').onclick=()=>{
+  if(!pumpStable()){msg('Đệm khí chưa ổn định nên xe bị ma sát giữ lại, không chạy. Hãy bật bộ điều khiển công suất (①), đợi khoảng 2 giây cho gió ổn định rồi thả tay.','warn');return;}
+  resetRun();S.a=MW*G/Mk(S.si)*Math.pow(1+EPS[S.si],2);S.stage='running';msg('');ui();};
+function step(h){
+  const prev=S.X;
+  S.V+=S.a*h;S.X+=S.V*h;S.simT+=h;
+  const gx=[GX1,S.g2];
+  for(let i=0;i<2;i++){const o=S.gt[i];
+    if(o.a===null&&prev<gx[i]&&S.X>=gx[i]){o.a=S.simT-h+h*(gx[i]-prev)/(S.X-prev);beep(i?1500:2000);}
+    const pr=prev-FLAGW,cr=S.X-FLAGW;
+    if(o.a!==null&&o.b===null&&pr<gx[i]&&cr>=gx[i])o.b=S.simT-h+h*(gx[i]-pr)/(cr-pr);}
+  if(++S.trc%12===0)S.tr.push([S.simT,S.X]);
+  if(S.gt[1].b!==null&&S.X>=S.g2+STOPAFTER)finish();}
+function finish(){
+  const r1=x=>Math.round(x*10)/10;
+  S.v1=r1(FLAGW/(S.gt[0].b-S.gt[0].a));S.v2=r1(FLAGW/(S.gt[1].b-S.gt[1].a));
+  S.stage='done';S.V=0;msg(`Xe đã qua cổng 2 — bạn giữ xe lại. Cassy hiển thị v₁ = ${S.v1.toFixed(1)} cm/s, v₂ = ${S.v2.toFixed(1)} cm/s.`,'good');ui();}
+$('bRec').onclick=()=>{
+  const Mv=parseFloat($('inM').value),v1=parseFloat($('inV1').value),v2=parseFloat($('inV2').value),a=parseFloat($('inA').value);
+  if(isNaN(Mv)||isNaN(v1)||isNaN(v2)||isNaN(a)){msg('Hãy nhập đủ M, v₁, v₂ và a vào bốn ô.','warn');return;}
+  if(Math.abs(v1-S.v1)>0.06||Math.abs(v2-S.v2)>0.06){msg('Giá trị v₁ hoặc v₂ chưa khớp với màn hình Cassy. Đọc lại v₁ (cổng 1) và v₂ (cổng 2).','warn');return;}
+  const ae=(v2*v2-v1*v1)/(2*SFIX);
+  if(Math.abs(a-ae)>Math.max(0.2,0.004*Math.abs(ae))){msg('Gia tốc chưa đúng. Dùng a = (v₂² − v₁²) / (2s), s = 40 cm và v tính bằng cm/s.','warn');return;}
+  if(Math.abs(Mv-Mk(S.si))>1){msg(`Khối lượng của hệ chưa đúng. M = m_xe + m + phần đặt thêm = 200 + 20 + ${MB*ADD[S.si]} (g).`,'warn');return;}
+  S.rd.M[S.si]=Mv;S.rd.v1[S.si]=v1;S.rd.v2[S.si]=v2;S.rd.a[S.si]=a;S.stage='recorded';
+  msg(`✔ Đã ghi: M = ${Mv} g, v₁ = ${v1.toFixed(1)}, v₂ = ${v2.toFixed(1)} cm/s, a = ${a.toFixed(1)} cm/s²`,'good');fillSel();ui();};
+
+// ---------- XỬ LÝ SỐ LIỆU ----------
+function expected(){
+  const a=S.rd.a,Ms=S.rd.M,n=a.length;
+  const Ftb=a.reduce((p,q,i)=>p+q/100*Ms[i]/1000,0)/n;                 // N
+  const k=((a[n-1]-a[0])/100)/(1000/Ms[n-1]-1000/Ms[0]);              // N
+  return{Ftb,k,Fg:MW/1000*GN};}
+function check(){
+  if(!allDone())return;
+  const e=expected();let all=true;
+  const mark=(id,ok)=>{$(id).classList.toggle('ok',ok);$(id).classList.toggle('bad',!ok);if(!ok)all=false;};
+  mark('cF',Math.abs(parseFloat($('cF').value)-e.Ftb)/e.Ftb<=0.015);
+  mark('cK',Math.abs(parseFloat($('cK').value)-e.k)/e.k<=0.02);
+  mark('cG',Math.abs(parseFloat($('cG').value)-e.Fg)<=0.004);
+  mark('cNote',$('cNote').value==='b');
+  const f=$('final');f.style.display='block';
+  if(all)f.innerHTML=`(a·M)<sub>tb</sub> = ${e.Ftb.toFixed(3)} N, hệ số góc k = ${e.k.toFixed(3)} N<br>m·g = ${e.Fg.toFixed(3)} N (chênh ${(Math.abs(e.Ftb-e.Fg)/e.Fg*100).toFixed(1)} %)<br>Kết luận: khi lực kéo không đổi, a tỉ lệ nghịch với khối lượng của hệ, tích a·M luôn bằng F = m·g, đúng với định luật II Newton a = F/M.`;
+  else f.textContent='Còn ô chưa đúng (viền đỏ). Tính lại nhé!';}
+$('bCheck').onclick=check;
+$('bShow').onclick=()=>{if(!allDone())return;const e=expected();
+  $('cF').value=e.Ftb.toFixed(4);$('cK').value=e.k.toFixed(4);$('cG').value=e.Fg.toFixed(3);$('cNote').value='b';check();};
+$('bReset').onclick=reset;
+function reset(){
+  S={si:0,stage:'setup',pump:{on:false,t:0},g2:G2INIT,g2T:G2INIT,X:X0,V:0,simT:0,acc:0,trc:0,gt:[{a:null,b:null},{a:null,b:null}],v1:null,v2:null,tr:[],a:0,
+     speed:parseFloat($('speed').value),rd:{M:ADD.map(()=>null),v1:ADD.map(()=>null),v2:ADD.map(()=>null),a:ADD.map(()=>null)}};
+  gate2.position.x=G2INIT;rebuildCable(cab2,G2INIT);
+  fillSel();clearInputs();msg('');ui();}
+
+// ---------- CẬP NHẬT CẢNH ----------
+function updateScene(){
+  const trav=Math.max(0,S.X-X0);
+  cartG.position.x=S.X-FLAGW/2;cartG.position.y=pumpStable()?0.35:0;
+  hand.visible=S.stage==='ready';
+  blocks.forEach((b,j)=>{b.visible=j<ADD[S.si];});
+  const wy=WY0-trav;weight.position.y=wy;
+  const px0=S.X-FLAGW/2+7.4,Lh=PX-px0,pos=strGeo.attributes.position;
+  let k=0;
+  for(let i=0;i<=24;i++){const u=i/24;pos.setXYZ(k++,px0+Lh*u,32.5,0);}
+  for(let i=1;i<=6;i++){const a=Math.PI/2-(Math.PI/2)*i/6;pos.setXYZ(k++,PX+3*Math.cos(a),PYC+3*Math.sin(a),0);}
+  pos.setXYZ(k++,WX,wy+2.5,0);pos.needsUpdate=true;
+  gate1.userData.beam.material.color.setHex((GX1<=S.X&&GX1>=S.X-FLAGW)?0x2ecc71:0xff3355);
+  gate2.userData.beam.material.color.setHex((S.g2<=S.X&&S.g2>=S.X-FLAGW)?0x2ecc71:0xff3355);
+}
+
+// ---------- ANIMATION ----------
+reset();
+let last=performance.now();
+(function animate(){
+  requestAnimationFrame(animate);
+  const now=performance.now(),dt=Math.min(.05,(now-last)/1000);last=now;
+  const was=pumpStable();
+  if(S.pump.on)S.pump.t+=dt;else S.pump.t=0;
+  knob.rotation.y+=((S.pump.on?Math.PI*.75:0)-knob.rotation.y)*.15;
+  pLED.material.color.setHex(S.pump.on?(pumpStable()?0x2ecc71:0xffb142):0x555555);
+  if(was!==pumpStable()){if(pumpStable())beep(900);ui();}else if(S.pump.on&&!pumpStable())chipUpdate();
+  airMat.opacity=pumpStable()?.5+.3*Math.sin(now/50):(S.pump.on?.12:0);
+  if(Math.abs(S.g2T-S.g2)>0.001){
+    const d=S.g2T-S.g2;S.g2+=Math.sign(d)*Math.min(Math.abs(d),dt*45);gate2.position.x=S.g2;rebuildCable(cab2,S.g2);
+    if(Math.abs(S.g2T-S.g2)<=0.001){S.g2=S.g2T;gate2.position.x=S.g2;msg(`✔ Hai cổng quang cách nhau s = ${Math.round(S.g2-GX1)} cm`,'good');ui();}
+    else drawCassy();}
+  dimS.userData.set(GX1,S.g2,'s = '+Math.round(S.g2-GX1)+' cm');
+  if(S.stage==='running'){S.acc+=dt*S.speed;while(S.acc>=HS&&S.stage==='running'){S.acc-=HS;step(HS);}drawCassy();}
+  updateScene();
+  if(camGoal){camera.position.lerp(camGoal.p,.08);controls.target.lerp(camGoal.t,.08);
+    if(camera.position.distanceTo(camGoal.p)<.3)camGoal=null;}
+  controls.update();renderer.render(scene,camera);
+})();
+window.addEventListener('resize',()=>{
+  camera.aspect=cc.clientWidth/cc.clientHeight;camera.updateProjectionMatrix();
+  renderer.setSize(cc.clientWidth,cc.clientHeight);drawCassy();drawChart();});
+</script>
+</body>
+</html>
